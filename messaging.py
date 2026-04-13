@@ -7,39 +7,59 @@ log = get_logger(__name__)
 
 _client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
 
-DEFAULT_AI_LINE = "Con lo que vi, hay una oportunidad clara de mejorar la experiencia en móvil."
+DEFAULT_AI_LINE = "Vi que su presencia en línea tiene áreas de mejora que les están costando clientes potenciales."
 
 _OUTREACH_TEMPLATE = """\
 Hola {name},
-Vi tu página y hay un par de cosas que están haciendo que pierdas clientes (sobre todo en celular).
+
+Mi nombre es Pablo, de Alcocer Studios. Espero que todo esté yendo muy bien por allá.
 
 {ai_line}
 
-Te dejo esto:
+En Alcocer Studios nos especializamos en crear páginas web profesionales, rápidas y diseñadas para convertir visitas en clientes reales — especialmente desde celular, que es donde la mayoría de la gente busca hoy en día.
+
+Si le interesa saber más, puede visitar nuestra página donde encontrará ejemplos de nuestro trabajo y toda la información:
 https://alcocerstudios.com
 
-Si te hace sentido, lo vemos.\
+O si prefiere, con gusto lo platicamos directamente — puede responder este correo, escribirnos a alcocerstudios@yahoo.com o llamarnos al (55) 2880-9044.
+
+Quedo a sus órdenes.
+
+Pablo
+Alcocer Studios
+(55) 2880-9044
+alcocerstudios@yahoo.com
+https://alcocerstudios.com\
 """
 
 _FOLLOWUP_TEMPLATE = """\
 Hola {name},
-Solo quería asegurarme de que recibiste mi mensaje anterior.
 
-Si todavía no has tenido chance de ver tu página, con gusto te muestro lo que encontré.
+Le escribo nuevamente de Alcocer Studios — soy Pablo.
 
+Quería asegurarme de que recibió mi mensaje anterior. Entiendo que el tiempo es valioso, por eso seré breve: encontramos algunas oportunidades concretas en su presencia digital que podrían traerle más clientes.
+
+Si gusta, con mucho gusto le platicamos sin ningún compromiso. Puede responder este correo, escribirnos a alcocerstudios@yahoo.com o llamarnos directamente al (55) 2880-9044.
+
+También puede ver nuestro trabajo en:
 https://alcocerstudios.com
 
-Saludos.\
+Saludos cordiales,
+
+Pablo
+Alcocer Studios
+(55) 2880-9044\
 """
 
 
 def generate_ai_line(name: str, website: str, category: str) -> str:
     """Call Claude Haiku for a single personalized sentence (~50 input tokens)."""
     prompt = (
-        f"Negocio: {name}. Sitio: {website}. Categoría: {category}. "
-        "Escribe UNA oración corta en español que mencione algo específico sobre su negocio "
-        "que sugiera por qué pueden estar perdiendo clientes en móvil. "
-        "Solo la oración, sin explicaciones."
+        f"Negocio: {name}. Sitio web: {website}. Categoría: {category}. "
+        "Escribe UNA sola oración en español formal (de usted) que identifique de forma específica "
+        "el problema digital de este negocio — ya sea que su página web se ve mal en celular, "
+        "no tiene página web, no aparece en Google, o no transmite confianza. "
+        "Menciona el nombre del negocio. Solo la oración, sin saludos ni explicaciones."
     )
     try:
         response = _client.messages.create(

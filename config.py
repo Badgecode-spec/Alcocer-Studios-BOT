@@ -40,7 +40,7 @@ FROM_EMAIL: str = _require("FROM_EMAIL")
 FROM_NAME: str = _optional("FROM_NAME", "Alcocer Studios")
 
 # === Safety cap ===
-DAILY_SEND_LIMIT: int = int(_optional("DAILY_SEND_LIMIT", "30"))
+DAILY_SEND_LIMIT: int = int(_optional("DAILY_SEND_LIMIT", "50"))
 
 # === Paths ===
 DB_PATH: str = _optional("DB_PATH", "bot.db")
