@@ -25,11 +25,14 @@ O si prefiere, con gusto lo platicamos directamente — puede responder este cor
 
 Quedo a sus órdenes.
 
-Pablo
-Alcocer Studios
-(55) 2880-9044
-alcocerstudios@yahoo.com
-https://alcocerstudios.com\
+Atentamente,
+
+Pablo Alcocer
+Fundador — Alcocer Studios
+─────────────────────────
+Tel:     (55) 2880-9044
+Correo:  alcocerstudios@yahoo.com
+Web:     alcocerstudios.com\
 """
 
 _FOLLOWUP_TEMPLATE = """\
@@ -44,11 +47,14 @@ Si gusta, con mucho gusto le platicamos sin ningún compromiso. Puede responder 
 También puede ver nuestro trabajo en:
 https://alcocerstudios.com
 
-Saludos cordiales,
+Atentamente,
 
-Pablo
-Alcocer Studios
-(55) 2880-9044\
+Pablo Alcocer
+Fundador — Alcocer Studios
+─────────────────────────
+Tel:     (55) 2880-9044
+Correo:  alcocerstudios@yahoo.com
+Web:     alcocerstudios.com\
 """
 
 
