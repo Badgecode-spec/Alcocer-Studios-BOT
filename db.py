@@ -1,0 +1,141 @@
+import sqlite3
+from datetime import datetime, timezone
+
+import config
+from logger import get_logger
+
+log = get_logger(__name__)
+
+_DDL = """
+CREATE TABLE IF NOT EXISTS leads (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    name                TEXT NOT NULL,
+    website             TEXT NOT NULL,
+    email               TEXT NOT NULL UNIQUE,
+    phone               TEXT,
+    address             TEXT,
+    category            TEXT,
+    query_used          TEXT,
+    status              TEXT NOT NULL DEFAULT 'new'
+                            CHECK(status IN ('new','contacted','followup','replied','closed')),
+    outreach_sent_at    TEXT,
+    followup_sent_at    TEXT,
+    replied_at          TEXT,
+    ai_line_used        TEXT,
+    notes               TEXT,
+    created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_email ON leads(email);
+CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
+CREATE INDEX IF NOT EXISTS idx_leads_outreach_sent_at ON leads(outreach_sent_at);
+
+CREATE TABLE IF NOT EXISTS send_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    lead_id     INTEGER NOT NULL REFERENCES leads(id),
+    send_type   TEXT NOT NULL CHECK(send_type IN ('outreach','followup','reply')),
+    sent_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    success     INTEGER NOT NULL DEFAULT 1,
+    error_msg   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_send_log_sent_at ON send_log(sent_at);
+"""
+
+
+def get_connection() -> sqlite3.Connection:
+    conn = sqlite3.connect(config.DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+def init_db() -> None:
+    with get_connection() as conn:
+        conn.executescript(_DDL)
+    log.info("Database initialized: %s", config.DB_PATH)
+
+
+def upsert_lead(lead_data: dict) -> int:
+    """Insert lead if email not already in DB. Returns the lead id."""
+    sql = """
+        INSERT OR IGNORE INTO leads
+            (name, website, email, phone, address, category, query_used)
+        VALUES
+            (:name, :website, :email, :phone, :address, :category, :query_used)
+    """
+    with get_connection() as conn:
+        conn.execute(sql, lead_data)
+        row = conn.execute("SELECT id FROM leads WHERE email = ?", (lead_data["email"],)).fetchone()
+        return row["id"]
+
+
+def get_leads_by_status(status: str) -> list[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute("SELECT * FROM leads WHERE status = ?", (status,)).fetchall()
+
+
+def get_leads_due_for_followup(days: int) -> list[sqlite3.Row]:
+    sql = """
+        SELECT * FROM leads
+        WHERE status = 'contacted'
+          AND outreach_sent_at < datetime('now', ? || ' days')
+          AND followup_sent_at IS NULL
+    """
+    with get_connection() as conn:
+        return conn.execute(sql, (f"-{days}",)).fetchall()
+
+
+def update_lead_status(lead_id: int, status: str) -> None:
+    with get_connection() as conn:
+        conn.execute("UPDATE leads SET status = ? WHERE id = ?", (status, lead_id))
+
+
+def update_lead_outreach_sent(lead_id: int, ai_line: str) -> None:
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE leads SET status='contacted', outreach_sent_at=?, ai_line_used=? WHERE id=?",
+            (now, ai_line, lead_id),
+        )
+
+
+def update_lead_followup_sent(lead_id: int) -> None:
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE leads SET status='followup', followup_sent_at=? WHERE id=?",
+            (now, lead_id),
+        )
+
+
+def update_lead_replied(lead_id: int, notes: str = "") -> None:
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE leads SET status='replied', replied_at=?, notes=? WHERE id=?",
+            (now, notes, lead_id),
+        )
+
+
+def log_send(lead_id: int, send_type: str, success: bool, error_msg: str = "") -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT INTO send_log (lead_id, send_type, success, error_msg) VALUES (?,?,?,?)",
+            (lead_id, send_type, 1 if success else 0, error_msg),
+        )
+
+
+def count_sends_today() -> int:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM send_log WHERE date(sent_at)=date('now') AND success=1"
+        ).fetchone()
+        return row[0]
+
+
+def email_exists(email: str) -> bool:
+    with get_connection() as conn:
+        row = conn.execute("SELECT 1 FROM leads WHERE email=?", (email,)).fetchone()
+        return row is not None
