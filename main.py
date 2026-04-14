@@ -62,7 +62,7 @@ def run_outreach_cycle() -> int:
     return sent
 
 
-def run_cycle() -> None:
+def run_cycle(fetch_leads: bool = False) -> None:
     """One full work cycle. Each step is isolated so a failure in one doesn't stop others."""
     log = get_logger(__name__)
 
@@ -70,13 +70,16 @@ def run_cycle() -> None:
         log.info("cycle skipped — bot paused via Telegram")
         return
 
-    log.info("=== cycle start ===")
+    log.info("=== cycle start (fetch_leads=%s) ===", fetch_leads)
 
-    try:
-        new_leads = leads.run_lead_fetch()
-        log.info("cycle step=lead_fetch new=%d", new_leads)
-    except Exception as exc:
-        log.error("cycle step=lead_fetch FAILED: %s", exc)
+    if fetch_leads:
+        try:
+            new_leads = leads.run_lead_fetch()
+            log.info("cycle step=lead_fetch new=%d", new_leads)
+        except Exception as exc:
+            log.error("cycle step=lead_fetch FAILED: %s", exc)
+    else:
+        log.info("cycle step=lead_fetch skipped (already ran today)")
 
     try:
         outreach_sent = run_outreach_cycle()
@@ -125,11 +128,19 @@ def main() -> None:
     )
 
     last_summary_date = ""
+    last_lead_fetch_date = ""  # Track daily lead fetch
 
     try:
         while True:
+            from datetime import datetime, timezone
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
             last_summary_date = telegram_bot.check_daily_summary(last_summary_date)
-            run_cycle()
+            run_cycle(fetch_leads=(last_lead_fetch_date != today))
+
+            if last_lead_fetch_date != today:
+                last_lead_fetch_date = today
+
             log.info("sleeping %ds until next cycle", config.LOOP_INTERVAL_SECONDS)
             time.sleep(config.LOOP_INTERVAL_SECONDS)
     except KeyboardInterrupt:
