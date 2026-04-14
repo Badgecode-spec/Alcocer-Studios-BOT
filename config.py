@@ -42,6 +42,10 @@ FROM_NAME: str = _optional("FROM_NAME", "Alcocer Studios")
 # === Safety cap ===
 DAILY_SEND_LIMIT: int = int(_optional("DAILY_SEND_LIMIT", "50"))
 
+# === Telegram ===
+TELEGRAM_BOT_TOKEN: str = _optional("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID: str = _optional("TELEGRAM_CHAT_ID", "")
+
 # === Paths ===
 DB_PATH: str = _optional("DB_PATH", "bot.db")
 LOG_FILE: str = _optional("LOG_FILE", "bot.log")

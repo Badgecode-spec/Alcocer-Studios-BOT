@@ -11,6 +11,7 @@ import followups  # noqa: E402
 import leads  # noqa: E402
 import messaging  # noqa: E402
 import replies  # noqa: E402
+import telegram_bot  # noqa: E402
 from logger import get_logger, setup_logging  # noqa: E402
 
 
@@ -29,6 +30,10 @@ def run_outreach_cycle() -> int:
     sent = 0
 
     for lead in new_leads:
+        if telegram_bot.is_paused():
+            log.info("outreach_cycle paused via Telegram — stopping")
+            break
+
         if not emailer.can_send_today():
             log.info("outreach_cycle daily cap reached — stopping")
             break
@@ -49,6 +54,7 @@ def run_outreach_cycle() -> int:
             db.update_lead_outreach_sent(lead["id"], email_data["ai_line"])
             sent += 1
             log.info("outreach_sent lead_id=%d name=%r", lead["id"], lead["name"])
+            telegram_bot.notify_outreach_sent(lead["name"], lead["email"])
         else:
             log.warning("outreach_failed lead_id=%d — will retry next cycle", lead["id"])
 
@@ -59,6 +65,11 @@ def run_outreach_cycle() -> int:
 def run_cycle() -> None:
     """One full work cycle. Each step is isolated so a failure in one doesn't stop others."""
     log = get_logger(__name__)
+
+    if telegram_bot.is_paused():
+        log.info("cycle skipped — bot paused via Telegram")
+        return
+
     log.info("=== cycle start ===")
 
     try:
@@ -94,6 +105,9 @@ def main() -> None:
 
     db.init_db()
 
+    # Start Telegram polling in background thread
+    telegram_bot.start_polling()
+
     log.info("=== Alcocer Studios BOT starting ===")
     log.info(
         "DB=%s | interval=%ds | daily_limit=%d | followup_days=%d | reply_sim=%.0f%%",
@@ -103,15 +117,24 @@ def main() -> None:
         config.FOLLOWUP_DAYS,
         config.REPLY_SIMULATION_CHANCE * 100,
     )
-    log.info("Queries: %s", config.OUTSCRAPER_QUERIES)
+
+    telegram_bot.send_message(
+        "🤖 <b>Alcocer Studios BOT iniciado</b>\n"
+        f"Enviando hasta {config.DAILY_SEND_LIMIT} correos/día\n"
+        "Usa /start para ver los comandos disponibles."
+    )
+
+    last_summary_date = ""
 
     try:
         while True:
+            last_summary_date = telegram_bot.check_daily_summary(last_summary_date)
             run_cycle()
             log.info("sleeping %ds until next cycle", config.LOOP_INTERVAL_SECONDS)
             time.sleep(config.LOOP_INTERVAL_SECONDS)
     except KeyboardInterrupt:
         log.info("=== BOT stopped by user ===")
+        telegram_bot.send_message("⚠️ Bot detenido manualmente.")
 
 
 if __name__ == "__main__":
