@@ -91,8 +91,17 @@ def _handle_command(text: str, from_chat_id: str) -> None:
     # Auto-register chat_id on first contact
     if not _chat_id:
         _chat_id = str(from_chat_id)
-        import config
-        log.info("telegram chat_id auto-registered: %s", _chat_id)
+        log.info("=== TELEGRAM CHAT ID: %s === Add this to Railway Variables as TELEGRAM_CHAT_ID", _chat_id)
+        # Reply directly so the user sees it even without chat_id set
+        try:
+            import config
+            requests.post(
+                f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage",
+                json={"chat_id": from_chat_id, "text": f"✅ Tu Chat ID es: {from_chat_id}\n\nCópialo y agrégalo en Railway Variables como:\nTELEGRAM_CHAT_ID={from_chat_id}"},
+                timeout=10,
+            )
+        except Exception:
+            pass
 
     cmd = text.strip().lower().split()[0]
 
