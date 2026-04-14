@@ -84,6 +84,67 @@ def send_daily_summary() -> None:
     )
 
 
+def _get_bot_context() -> str:
+    """Build a short context string with current bot stats for the AI."""
+    try:
+        import db
+        today_sent = db.count_sends_today()
+        new_leads = len(db.get_leads_by_status("new"))
+        contacted = len(db.get_leads_by_status("contacted"))
+        replied = len(db.get_leads_by_status("replied"))
+        return (
+            f"Stats actuales: {today_sent} correos enviados hoy, "
+            f"{new_leads} leads nuevos en cola, "
+            f"{contacted} contactados, {replied} respondieron. "
+            f"Bot {'PAUSADO' if _paused else 'activo'}."
+        )
+    except Exception:
+        return "Stats no disponibles."
+
+
+def _chat_with_ai(text: str, from_chat_id: str) -> None:
+    """Send a free-form message to Claude Haiku and reply in Telegram."""
+    import anthropic
+    import config
+
+    context = _get_bot_context()
+    try:
+        client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        response = client.messages.create(
+            model=config.HAIKU_MODEL,
+            max_tokens=300,
+            system=(
+                "Eres el asistente personal de Pablo, dueño de Alcocer Studios, "
+                "una agencia de diseño web en México. "
+                "Ayudas a Pablo a monitorear su bot de outreach automatizado. "
+                "Respondes en español, de forma amigable, concisa y útil. "
+                "Puedes responder preguntas sobre el negocio, los leads, el bot, "
+                "o simplemente platicar. "
+                f"Contexto del bot ahora mismo: {context}"
+            ),
+            messages=[{"role": "user", "content": text}],
+        )
+        reply = response.content[0].text.strip()
+        try:
+            requests.post(
+                f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage",
+                json={"chat_id": from_chat_id, "text": reply},
+                timeout=10,
+            )
+        except Exception:
+            pass
+    except Exception as exc:
+        log.warning("telegram AI chat error: %s", exc)
+        try:
+            requests.post(
+                f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage",
+                json={"chat_id": from_chat_id, "text": "No pude responder en este momento. Intenta de nuevo."},
+                timeout=10,
+            )
+        except Exception:
+            pass
+
+
 def _handle_command(text: str, from_chat_id: str) -> None:
     """Process an incoming command from Telegram."""
     global _paused, _chat_id
@@ -157,7 +218,8 @@ def _handle_command(text: str, from_chat_id: str) -> None:
         send_message(f"Estado del bot: {state}")
 
     else:
-        send_message("Comando no reconocido. Usa /start para ver los comandos disponibles.")
+        # Free-form conversation — route to Claude Haiku
+        _chat_with_ai(text, from_chat_id)
 
 
 def _poll_loop() -> None:
