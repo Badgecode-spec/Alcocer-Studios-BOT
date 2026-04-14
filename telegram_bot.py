@@ -248,10 +248,16 @@ def _poll_loop() -> None:
                 timeout=40,
             )
             if resp.status_code != 200:
+                log.warning("telegram getUpdates HTTP %d: %s", resp.status_code, resp.text[:200])
                 time.sleep(5)
                 continue
 
-            updates = resp.json().get("result", [])
+            data = resp.json()
+            if not data.get("ok"):
+                log.warning("telegram getUpdates not ok: %s", data)
+                time.sleep(5)
+                continue
+            updates = data.get("result", [])
             for update in updates:
                 _last_update_id = update["update_id"]
                 msg = update.get("message", {})
