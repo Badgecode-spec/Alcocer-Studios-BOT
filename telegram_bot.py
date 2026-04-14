@@ -169,7 +169,14 @@ def _poll_loop() -> None:
         log.warning("TELEGRAM_BOT_TOKEN not set — polling disabled")
         return
 
-    log.info("telegram polling started")
+    log.info("telegram polling started — token loaded OK")
+
+    # Clear any existing webhook so polling works
+    try:
+        r = requests.post(f"{_base_url()}/deleteWebhook", timeout=10)
+        log.info("telegram deleteWebhook: %s", r.json())
+    except Exception as exc:
+        log.warning("telegram deleteWebhook failed: %s", exc)
 
     while True:
         try:
@@ -187,9 +194,10 @@ def _poll_loop() -> None:
                 _last_update_id = update["update_id"]
                 msg = update.get("message", {})
                 text = msg.get("text", "")
-                from_chat_id = msg.get("chat", {}).get("id", "")
-                if text and text.startswith("/"):
-                    _handle_command(text, str(from_chat_id))
+                from_chat_id = str(msg.get("chat", {}).get("id", ""))
+                if text and from_chat_id:
+                    log.info("telegram message from=%s text=%r", from_chat_id, text[:50])
+                    _handle_command(text, from_chat_id)
 
         except Exception as exc:
             log.warning("telegram poll error: %s", exc)
