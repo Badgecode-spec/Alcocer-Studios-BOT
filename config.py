@@ -53,10 +53,20 @@ LOG_FILE: str = _optional("LOG_FILE", "bot.log")
 # === Outscraper ===
 _raw_queries = _optional(
     "OUTSCRAPER_QUERIES",
-    "restaurantes en Ciudad de Mexico,salones de belleza en CDMX,"
-    "talleres mecanicos en Guadalajara,dentistas en Monterrey,"
-    "plomeros en Puebla,contadores en Guadalajara,"
-    "veterinarias en Ciudad de Mexico,gimnasios en CDMX",
+    # Tourist cities — high web-search intent
+    "spa en Cancun,salon de belleza en Cancun,barberia en Cancun,cafeteria en Cancun,"
+    "spa en Tulum,salon de belleza en Tulum,barberia en Tulum,cafeteria en Tulum,"
+    "spa en Puerto Vallarta,salon de belleza en Puerto Vallarta,barberia en Puerto Vallarta,"
+    "estudio de pilates en Puerto Vallarta,cafeteria en Puerto Vallarta,"
+    "spa en Acapulco,salon de belleza en Acapulco,"
+    # Major cities — volume
+    "spa en Ciudad de Mexico,salon de belleza en Ciudad de Mexico,"
+    "barberia en Ciudad de Mexico,estudio de pilates en Ciudad de Mexico,"
+    "gimnasio en Ciudad de Mexico,cafeteria en Ciudad de Mexico,"
+    "spa en Guadalajara,salon de belleza en Guadalajara,barberia en Guadalajara,"
+    "gimnasio en Guadalajara,estudio de pilates en Guadalajara,"
+    "spa en Monterrey,salon de belleza en Monterrey,barberia en Monterrey,"
+    "gimnasio en Monterrey",
 )
 OUTSCRAPER_QUERIES: list[str] = [q.strip() for q in _raw_queries.split(",") if q.strip()]
 OUTSCRAPER_LIMIT: int = int(_optional("OUTSCRAPER_LIMIT", "20"))
