@@ -18,10 +18,10 @@ Mi nombre es Pablo, de Alcocer Studios. Espero que todo esté yendo muy bien por
 
 En Alcocer Studios nos especializamos en crear páginas web profesionales, rápidas y diseñadas para convertir visitas en clientes reales — especialmente desde celular, que es donde la mayoría de la gente busca hoy en día.
 
-Si le interesa saber más, puede visitar nuestra página donde encontrará ejemplos de nuestro trabajo y toda la información:
+Si les interesa saber más, pueden visitar nuestra página donde encontrarán ejemplos de nuestro trabajo y toda la información:
 https://alcocerstudios.com
 
-O si prefiere, con gusto lo platicamos directamente — puede responder este correo, escribirnos a alcocerstudios@yahoo.com o llamarnos al (55) 2880-9044.
+O si prefieren, con gusto lo platicamos directamente — pueden responder este correo, escribirnos a alcocerstudios@yahoo.com o llamarnos al (55) 2880-9044.
 
 Quedo a sus órdenes.
 
@@ -38,11 +38,11 @@ Web:     alcocerstudios.com\
 _FOLLOWUP_TEMPLATE = """\
 Hola {name},
 
-Le escribo nuevamente de Alcocer Studios — soy Pablo.
+Les escribo nuevamente de Alcocer Studios — soy Pablo.
 
-Quería asegurarme de que recibió mi mensaje anterior. Entiendo que el tiempo es valioso, por eso seré breve: encontramos algunas oportunidades concretas en su presencia digital que podrían traerle más clientes.
+Quería asegurarme de que recibieron mi mensaje anterior. Entiendo que el tiempo es valioso, por eso seré breve: encontramos algunas oportunidades concretas en su presencia digital que podrían traerles más clientes.
 
-Si gusta, con mucho gusto le platicamos sin ningún compromiso. Puede responder este correo, escribirnos a alcocerstudios@yahoo.com o llamarnos directamente al (55) 2880-9044.
+Si gustan, con mucho gusto les platicamos sin ningún compromiso. Pueden responder este correo, escribirnos a alcocerstudios@yahoo.com o llamarnos directamente al (55) 2880-9044.
 
 También puede ver nuestro trabajo en:
 https://alcocerstudios.com
@@ -62,7 +62,7 @@ def generate_ai_line(name: str, website: str, category: str) -> str:
     """Call Claude Haiku for a single personalized sentence (~50 input tokens)."""
     prompt = (
         f"Negocio: {name}. Sitio web: {website}. Categoría: {category}. "
-        "Escribe UNA sola oración en español formal (de usted) que identifique de forma específica "
+        "Escribe UNA sola oración en español formal (de ustedes, dirigiéndote al equipo del negocio) que identifique de forma específica "
         "el problema digital de este negocio — ya sea que su página web se ve mal en celular, "
         "no tiene página web, no aparece en Google, o no transmite confianza. "
         "Menciona el nombre del negocio. Solo la oración, sin saludos ni explicaciones. "
