@@ -133,9 +133,12 @@ def log_send(lead_id: int, send_type: str, success: bool, error_msg: str = "") -
 
 
 def count_sends_today() -> int:
+    # Use CDMX calendar date (UTC-6) so "today" matches Mexico City, not UTC
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT COUNT(*) FROM send_log WHERE date(sent_at)=date('now') AND success=1"
+            "SELECT COUNT(*) FROM send_log "
+            "WHERE date(datetime(sent_at, '-6 hours')) = date(datetime('now', '-6 hours')) "
+            "AND success=1"
         ).fetchone()
         return row[0]
 

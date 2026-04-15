@@ -25,9 +25,9 @@ def run_outreach_cycle() -> int:
     """
     log = get_logger(__name__)
 
-    # Only send outreach 9am–12pm CDMX, every day of the week
+    # Only send outreach 7am–10am CDMX, every day of the week
     now_cdmx = datetime.now(CDMX)
-    if not (9 <= now_cdmx.hour < 12):
+    if not (7 <= now_cdmx.hour < 10):
         log.info("outreach_cycle skipped — outside send window (now %02d:%02d CDMX)", now_cdmx.hour, now_cdmx.minute)
         return 0
 
@@ -141,8 +141,8 @@ def main() -> None:
 
     try:
         while True:
-            from datetime import datetime, timezone
-            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            # Use CDMX calendar date so "today" matches Mexico City, not UTC
+            today = datetime.now(CDMX).strftime("%Y-%m-%d")
 
             last_summary_date = telegram_bot.check_daily_summary(last_summary_date)
 
