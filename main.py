@@ -1,6 +1,9 @@
 import time
+from datetime import datetime, timezone, timedelta
 
 from dotenv import load_dotenv
+
+CDMX = timezone(timedelta(hours=-6))
 
 load_dotenv()  # Must run before any config import
 
@@ -21,6 +24,13 @@ def run_outreach_cycle() -> int:
     Returns count sent.
     """
     log = get_logger(__name__)
+
+    # Only send outreach 9am–12pm CDMX, every day of the week
+    now_cdmx = datetime.now(CDMX)
+    if not (9 <= now_cdmx.hour < 12):
+        log.info("outreach_cycle skipped — outside send window (now %02d:%02d CDMX)", now_cdmx.hour, now_cdmx.minute)
+        return 0
+
     new_leads = db.get_leads_by_status("new")
     if not new_leads:
         log.info("outreach_cycle no new leads")
