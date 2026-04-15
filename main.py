@@ -138,7 +138,6 @@ def main() -> None:
     )
 
     last_summary_date = ""
-    last_lead_fetch_date = ""  # Track daily lead fetch
 
     try:
         while True:
@@ -146,10 +145,14 @@ def main() -> None:
             today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
             last_summary_date = telegram_bot.check_daily_summary(last_summary_date)
-            run_cycle(fetch_leads=(last_lead_fetch_date != today))
 
-            if last_lead_fetch_date != today:
-                last_lead_fetch_date = today
+            # Read fetch date from DB so it survives bot restarts/redeploys
+            last_lead_fetch_date = db.get_state("last_lead_fetch_date")
+            should_fetch = last_lead_fetch_date != today
+            run_cycle(fetch_leads=should_fetch)
+
+            if should_fetch:
+                db.set_state("last_lead_fetch_date", today)
 
             log.info("sleeping %ds until next cycle", config.LOOP_INTERVAL_SECONDS)
             time.sleep(config.LOOP_INTERVAL_SECONDS)

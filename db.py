@@ -30,6 +30,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_email ON leads(email);
 CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
 CREATE INDEX IF NOT EXISTS idx_leads_outreach_sent_at ON leads(outreach_sent_at);
 
+CREATE TABLE IF NOT EXISTS bot_state (
+    key     TEXT PRIMARY KEY,
+    value   TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS send_log (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     lead_id     INTEGER NOT NULL REFERENCES leads(id),
@@ -139,3 +144,19 @@ def email_exists(email: str) -> bool:
     with get_connection() as conn:
         row = conn.execute("SELECT 1 FROM leads WHERE email=?", (email,)).fetchone()
         return row is not None
+
+
+def get_state(key: str) -> str:
+    """Get a persistent bot state value (survives restarts)."""
+    with get_connection() as conn:
+        row = conn.execute("SELECT value FROM bot_state WHERE key=?", (key,)).fetchone()
+        return row["value"] if row else ""
+
+
+def set_state(key: str, value: str) -> None:
+    """Persist a bot state value to the database."""
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO bot_state (key, value) VALUES (?,?)",
+            (key, value),
+        )
