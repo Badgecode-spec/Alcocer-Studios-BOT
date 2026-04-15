@@ -1,5 +1,6 @@
 import threading
 import time
+from collections import deque
 from datetime import datetime, timezone, timedelta
 
 import requests
@@ -14,6 +15,9 @@ CDMX = timezone(timedelta(hours=-6))
 _paused = False
 _last_update_id = 0
 _chat_id: str = ""
+
+# Conversation memory — keeps last 20 messages (10 exchanges)
+_conversation_history: deque = deque(maxlen=20)
 
 
 def _base_url() -> str:
@@ -103,16 +107,20 @@ def _get_bot_context() -> str:
 
 
 def _chat_with_ai(text: str, from_chat_id: str) -> None:
-    """Send a free-form message to Claude Haiku and reply in Telegram."""
+    """Send a free-form message to Claude Haiku with conversation history."""
     import anthropic
     import config
 
     context = _get_bot_context()
+
+    # Add user message to history
+    _conversation_history.append({"role": "user", "content": text})
+
     try:
         client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
         response = client.messages.create(
             model=config.HAIKU_MODEL,
-            max_tokens=300,
+            max_tokens=500,
             system=(
                 "Eres el asistente personal de Pablo, dueño de Alcocer Studios, "
                 "una agencia de diseño web en México. "
@@ -122,9 +130,13 @@ def _chat_with_ai(text: str, from_chat_id: str) -> None:
                 "o simplemente platicar. "
                 f"Contexto del bot ahora mismo: {context}"
             ),
-            messages=[{"role": "user", "content": text}],
+            messages=list(_conversation_history),
         )
         reply = response.content[0].text.strip()
+
+        # Add assistant reply to history so next message has full context
+        _conversation_history.append({"role": "assistant", "content": reply})
+
         try:
             requests.post(
                 f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage",
@@ -135,6 +147,9 @@ def _chat_with_ai(text: str, from_chat_id: str) -> None:
             pass
     except Exception as exc:
         log.warning("telegram AI chat error: %s", exc)
+        # Remove the user message we added since the call failed
+        if _conversation_history and _conversation_history[-1]["role"] == "user":
+            _conversation_history.pop()
         try:
             requests.post(
                 f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage",
