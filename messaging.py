@@ -65,13 +65,15 @@ def generate_ai_line(name: str, website: str, category: str) -> str:
         "Escribe UNA sola oración en español formal (de usted) que identifique de forma específica "
         "el problema digital de este negocio — ya sea que su página web se ve mal en celular, "
         "no tiene página web, no aparece en Google, o no transmite confianza. "
-        "Menciona el nombre del negocio. Solo la oración, sin saludos ni explicaciones."
+        "Menciona el nombre del negocio. Solo la oración, sin saludos ni explicaciones. "
+        "Usa únicamente palabras reales del español; nunca inventes palabras. "
+        "Si mencionas una dirección web, llámala 'dirección web' o 'enlace', nunca 'URL'."
     )
     try:
         response = _client.messages.create(
             model=config.HAIKU_MODEL,
             max_tokens=config.HAIKU_MAX_TOKENS,
-            system="Eres un asistente de ventas conciso. Responde solo con una oración corta en español.",
+            system="Eres un asistente de ventas conciso. Responde solo con una oración corta en español estándar correcto, sin inventar palabras.",
             messages=[{"role": "user", "content": prompt}],
         )
         line = response.content[0].text.strip()
