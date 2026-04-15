@@ -69,4 +69,4 @@ _raw_queries = _optional(
     "gimnasio en Monterrey",
 )
 OUTSCRAPER_QUERIES: list[str] = [q.strip() for q in _raw_queries.split(",") if q.strip()]
-OUTSCRAPER_LIMIT: int = int(_optional("OUTSCRAPER_LIMIT", "20"))
+OUTSCRAPER_LIMIT: int = int(_optional("OUTSCRAPER_LIMIT", "5"))
