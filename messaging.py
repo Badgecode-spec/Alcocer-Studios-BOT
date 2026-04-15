@@ -93,7 +93,7 @@ def build_outreach_email(name: str, website: str, category: str) -> dict:
     ai_line = generate_ai_line(display_name, website, category)
     body = _OUTREACH_TEMPLATE.format(name=display_name, ai_line=ai_line)
     return {
-        "subject": f"Tu página web, {display_name}",
+        "subject": f"Duda para {display_name}",
         "body": body,
         "ai_line": ai_line,
     }

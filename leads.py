@@ -91,14 +91,39 @@ def _extract_email(raw: dict) -> str:
     return _validate_email(str(email).strip().lower())
 
 
+_SOCIAL_DOMAINS = ("facebook.com", "instagram.com", "fb.com")
+_WEAK_BUILDERS = ("wix.com", "webnode", "jimdo", "weebly.com", "wordpress.com", "blogspot", "site123", "negocio.site")
+_MAX_REVIEWS = 500
+
+
+def _has_weak_presence(raw: dict, website: str) -> bool:
+    """
+    Return True if the business is a good target — weak or no online presence.
+    Skip businesses that are too established (many reviews + real website).
+    """
+    website_lower = website.lower()
+    # Social media as their only "website" = no real website at all
+    if any(d in website_lower for d in _SOCIAL_DOMAINS):
+        return True
+    # Free/cheap builders = poor quality website
+    if any(b in website_lower for b in _WEAK_BUILDERS):
+        return True
+    # Too many reviews = established business, likely has real marketing
+    reviews = int(raw.get("reviews", 0) or raw.get("reviews_count", 0) or 0)
+    return reviews <= _MAX_REVIEWS
+
+
 def parse_lead(raw: dict, query_used: str) -> dict | None:
     """
     Normalize a raw Outscraper place dict.
-    Returns None if website is missing.
+    Returns None if website is missing or business is too established.
     Email may be empty — caller handles enrichment.
     """
     website = (raw.get("site") or raw.get("website") or "").strip()
     if not website:
+        return None
+
+    if not _has_weak_presence(raw, website):
         return None
 
     return {
