@@ -38,9 +38,9 @@ Web:     alcocerstudios.com\
 _FOLLOWUP_TEMPLATE = """\
 Hola {name},
 
-Les escribo nuevamente de Alcocer Studios — soy Pablo.
+Soy Pablo, de Alcocer Studios — les escribo porque revisamos su presencia en línea y encontramos algunas oportunidades concretas que podrían traerles más clientes.
 
-Quería asegurarme de que recibieron mi mensaje anterior. Entiendo que el tiempo es valioso, por eso seré breve: encontramos algunas oportunidades concretas en su presencia digital que podrían traerles más clientes.
+Entiendo que el tiempo es valioso, por eso seré breve: en Alcocer Studios creamos páginas web profesionales diseñadas para convertir visitas en clientes reales, especialmente desde celular.
 
 Si gustan, con mucho gusto les platicamos sin ningún compromiso. Pueden responder este correo, escribirnos a alcocerstudios@yahoo.com o llamarnos directamente al (55) 2880-9044.
 
@@ -104,6 +104,6 @@ def build_followup_email(name: str) -> dict:
     display_name = name or "amigo"
     body = _FOLLOWUP_TEMPLATE.format(name=display_name)
     return {
-        "subject": f"Re: Tu página web, {display_name}",
+        "subject": f"Re: Duda para {display_name}",
         "body": body,
     }
