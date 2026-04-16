@@ -70,3 +70,12 @@ _raw_queries = _optional(
 )
 OUTSCRAPER_QUERIES: list[str] = [q.strip() for q in _raw_queries.split(",") if q.strip()]
 OUTSCRAPER_LIMIT: int = int(_optional("OUTSCRAPER_LIMIT", "5"))
+
+# === IMAP (Zoho reply detection) ===
+ZOHO_IMAP_EMAIL: str = _optional("ZOHO_IMAP_EMAIL", "")
+ZOHO_APP_PASSWORD: str = _optional("ZOHO_APP_PASSWORD", "")
+IMAP_HOST: str = "imap.zoho.com"
+IMAP_PORT: int = 993
+
+# === Email send pacing ===
+EMAIL_SEND_DELAY: float = float(_optional("EMAIL_SEND_DELAY", "2.0"))

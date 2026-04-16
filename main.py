@@ -11,6 +11,7 @@ import config  # noqa: E402
 import db  # noqa: E402
 import emailer  # noqa: E402
 import followups  # noqa: E402
+import imap_checker  # noqa: E402
 import leads  # noqa: E402
 import messaging  # noqa: E402
 import replies  # noqa: E402
@@ -64,11 +65,12 @@ def run_outreach_cycle() -> int:
             db.update_lead_outreach_sent(lead["id"], email_data["ai_line"])
             sent += 1
             log.info("outreach_sent lead_id=%d name=%r", lead["id"], lead["name"])
-            telegram_bot.notify_outreach_sent(lead["name"], lead["email"])
         else:
             log.warning("outreach_failed lead_id=%d — will retry next cycle", lead["id"])
 
     log.info("outreach_cycle sent=%d", sent)
+    if sent > 0:
+        telegram_bot.notify_outreach_batch(sent, db.count_sends_today())
     return sent
 
 
@@ -109,6 +111,12 @@ def run_cycle(fetch_leads: bool = False) -> None:
     except Exception as exc:
         log.error("cycle step=replies FAILED: %s", exc)
 
+    try:
+        replies_from_inbox = imap_checker.run_imap_check()
+        log.info("cycle step=imap_check processed=%d", replies_from_inbox)
+    except Exception as exc:
+        log.error("cycle step=imap_check FAILED: %s", exc)
+
     log.info("=== cycle end ===")
 
 
@@ -137,14 +145,12 @@ def main() -> None:
         "Usa /start para ver los comandos disponibles."
     )
 
-    last_summary_date = ""
-
     try:
         while True:
             # Use CDMX calendar date so "today" matches Mexico City, not UTC
             today = datetime.now(CDMX).strftime("%Y-%m-%d")
 
-            last_summary_date = telegram_bot.check_daily_summary(last_summary_date)
+            telegram_bot.check_daily_summary()
 
             # Read fetch date from DB so it survives bot restarts/redeploys
             last_lead_fetch_date = db.get_state("last_lead_fetch_date")

@@ -163,3 +163,38 @@ def set_state(key: str, value: str) -> None:
             "INSERT OR REPLACE INTO bot_state (key, value) VALUES (?,?)",
             (key, value),
         )
+
+
+def get_lead_by_email(email: str) -> sqlite3.Row | None:
+    """Look up a lead by their email address."""
+    with get_connection() as conn:
+        return conn.execute(
+            "SELECT * FROM leads WHERE email=?", (email.lower().strip(),)
+        ).fetchone()
+
+
+def close_lead(lead_id: int, notes: str = "") -> None:
+    """Mark a lead as closed (opted out, unresponsive, etc.)."""
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE leads SET status='closed', notes=? WHERE id=?",
+            (notes, lead_id),
+        )
+
+
+def get_weekly_stats() -> dict:
+    """Stats for the last 7 CDMX calendar days."""
+    with get_connection() as conn:
+        sent_7d = conn.execute(
+            "SELECT COUNT(*) FROM send_log "
+            "WHERE date(datetime(sent_at,'-6 hours')) >= date(datetime('now','-6 hours','-6 days')) "
+            "AND success=1"
+        ).fetchone()[0]
+        counts = {}
+        for status in ("new", "contacted", "followup", "replied", "closed"):
+            counts[status] = conn.execute(
+                "SELECT COUNT(*) FROM leads WHERE status=?", (status,)
+            ).fetchone()[0]
+        counts["total"] = conn.execute("SELECT COUNT(*) FROM leads").fetchone()[0]
+        counts["sent_7d"] = sent_7d
+        return counts

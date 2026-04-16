@@ -1,3 +1,5 @@
+import time
+
 import requests
 
 import config
@@ -48,6 +50,7 @@ def send_email(
         if resp.status_code in (200, 201):
             db.log_send(lead_id, send_type, True)
             log.info("email_sent lead_id=%d type=%s to=%s", lead_id, send_type, to_email)
+            time.sleep(config.EMAIL_SEND_DELAY)
             return True
         else:
             error_msg = resp.text[:200]

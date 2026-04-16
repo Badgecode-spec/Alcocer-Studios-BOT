@@ -60,11 +60,16 @@ def notify_reply(lead_name: str, reply_preview: str) -> None:
 
 
 def notify_outreach_sent(lead_name: str, email: str) -> None:
-    """Called when an outreach email is sent."""
+    """No-op — replaced by notify_outreach_batch called once per morning cycle."""
+    pass
+
+
+def notify_outreach_batch(sent: int, total_today: int) -> None:
+    """Called once after the morning send cycle completes."""
+    import config
     send_message(
-        f"📧 <b>Correo enviado</b>\n"
-        f"<b>Negocio:</b> {lead_name}\n"
-        f"<b>Email:</b> {email}"
+        f"📧 <b>Correos enviados esta mañana: {sent}</b>\n"
+        f"Total hoy: {total_today}/{config.DAILY_SEND_LIMIT}"
     )
 
 
@@ -189,6 +194,8 @@ def _handle_command(text: str, from_chat_id: str) -> None:
             f"/stats — Estadísticas de hoy\n"
             f"/leads — Últimos leads encontrados\n"
             f"/replies — Leads que respondieron\n"
+            f"/week — Estadísticas de 7 días\n"
+            f"/pipeline — Ver embudo completo\n"
             f"/pause — Pausar envío de correos\n"
             f"/resume — Reanudar envío\n"
             f"/status — Ver estado del bot\n\n"
@@ -231,6 +238,34 @@ def _handle_command(text: str, from_chat_id: str) -> None:
     elif cmd == "/status":
         state = "⏸ <b>PAUSADO</b>" if _paused else "▶️ <b>ACTIVO</b>"
         send_message(f"Estado del bot: {state}")
+
+    elif cmd == "/week":
+        import db
+        s = db.get_weekly_stats()
+        send_message(
+            f"📈 <b>Últimos 7 días</b>\n\n"
+            f"📧 Correos enviados: <b>{s['sent_7d']}</b>\n"
+            f"🆕 Leads nuevos en cola: <b>{s['new']}</b>\n"
+            f"📬 Contactados: <b>{s['contacted']}</b>\n"
+            f"🔁 En seguimiento: <b>{s['followup']}</b>\n"
+            f"✅ Respondieron: <b>{s['replied']}</b>\n"
+            f"🚫 Cerrados/opt-out: <b>{s['closed']}</b>\n"
+            f"📊 Total leads en DB: <b>{s['total']}</b>"
+        )
+
+    elif cmd == "/pipeline":
+        import db
+        s = db.get_weekly_stats()
+        total = s['total'] or 1
+        send_message(
+            f"🔭 <b>Pipeline completo</b>\n\n"
+            f"🆕 Nuevos: <b>{s['new']}</b>\n"
+            f"📬 Contactados: <b>{s['contacted']}</b>\n"
+            f"🔁 Seguimiento: <b>{s['followup']}</b>\n"
+            f"✅ Respondieron: <b>{s['replied']}</b>\n"
+            f"🚫 Cerrados: <b>{s['closed']}</b>\n\n"
+            f"Tasa de respuesta: <b>{s['replied']/total*100:.1f}%</b>"
+        )
 
     else:
         # Free-form conversation — route to Claude Haiku
@@ -299,14 +334,14 @@ def is_paused() -> bool:
     return _paused
 
 
-def check_daily_summary(last_summary_date: str) -> str:
+def check_daily_summary() -> None:
     """
     Call this each cycle. Sends daily summary at 9am CDMX if not already sent today.
-    Pass in last_summary_date (YYYY-MM-DD string), returns updated date.
+    Persists last_summary_date in DB so it survives bot restarts.
     """
+    import db
     now = datetime.now(CDMX)
     today = now.strftime("%Y-%m-%d")
-    if now.hour == 9 and last_summary_date != today:
+    if now.hour == 9 and db.get_state("last_summary_date") != today:
         send_daily_summary()
-        return today
-    return last_summary_date
+        db.set_state("last_summary_date", today)
