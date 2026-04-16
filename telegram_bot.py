@@ -246,8 +246,7 @@ def _poll_loop() -> None:
         log.warning("TELEGRAM_BOT_TOKEN not set — polling disabled")
         return
 
-    token = config.TELEGRAM_BOT_TOKEN
-    log.info("telegram polling started — token len=%d repr=%r", len(token), token[:8] + "..." + token[-4:])
+    log.info("telegram polling started — token loaded OK")
 
     # Clear any existing webhook so polling works
     try:

@@ -113,7 +113,7 @@ def build_reply_email(lead_name: str, reply_text: str) -> dict:
         used_sonnet = False
 
     return {
-        "subject": f"Re: Tu página web, {display_name}",
+        "subject": f"Re: Duda para {display_name}",
         "body": body,
         "used_sonnet": used_sonnet,
     }
@@ -121,9 +121,12 @@ def build_reply_email(lead_name: str, reply_text: str) -> dict:
 
 def run_reply_cycle() -> int:
     """
-    Simulate reply detection for contacted/followup leads and respond.
-    Returns count of replies processed.
+    Reply simulation — only runs if REPLY_SIMULATION_CHANCE > 0 (testing only).
+    In production this should be 0 so no fake emails go out to real leads.
     """
+    if config.REPLY_SIMULATION_CHANCE <= 0:
+        return 0
+
     candidates = db.get_leads_by_status("contacted") + db.get_leads_by_status("followup")
     if not candidates:
         log.info("reply_cycle no candidates")

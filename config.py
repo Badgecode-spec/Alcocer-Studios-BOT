@@ -33,7 +33,7 @@ LOOP_INTERVAL_SECONDS: int = int(_optional("LOOP_INTERVAL_SECONDS", "3600"))
 FOLLOWUP_DAYS: int = int(_optional("FOLLOWUP_DAYS", "3"))
 
 # === Reply simulation ===
-REPLY_SIMULATION_CHANCE: float = float(_optional("REPLY_SIMULATION_CHANCE", "0.15"))
+REPLY_SIMULATION_CHANCE: float = float(_optional("REPLY_SIMULATION_CHANCE", "0"))
 
 # === Email sender ===
 FROM_EMAIL: str = _require("FROM_EMAIL")
