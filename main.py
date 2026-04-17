@@ -26,9 +26,9 @@ def run_outreach_cycle() -> int:
     """
     log = get_logger(__name__)
 
-    # Only send outreach 7am–10am CDMX, every day of the week
+    # Only send outreach 7am–9pm CDMX, every day of the week
     now_cdmx = datetime.now(CDMX)
-    if not (7 <= now_cdmx.hour < 10):
+    if not (7 <= now_cdmx.hour < 21):
         log.info("outreach_cycle skipped — outside send window (now %02d:%02d CDMX)", now_cdmx.hour, now_cdmx.minute)
         return 0
 
