@@ -19,6 +19,14 @@ _chat_id: str = ""
 # Conversation memory — keeps last 20 messages (10 exchanges)
 _conversation_history: deque = deque(maxlen=20)
 
+# Registered by main.py so /sendnow can trigger an immediate outreach pass
+_outreach_trigger = None
+
+
+def register_outreach_trigger(fn) -> None:
+    global _outreach_trigger
+    _outreach_trigger = fn
+
 
 def _base_url() -> str:
     import config
@@ -196,6 +204,7 @@ def _handle_command(text: str, from_chat_id: str) -> None:
             f"/replies — Leads que respondieron\n"
             f"/week — Estadísticas de 7 días\n"
             f"/pipeline — Ver embudo completo\n"
+            f"/sendnow — Enviar correos pendientes ahora mismo\n"
             f"/pause — Pausar envío de correos\n"
             f"/resume — Reanudar envío\n"
             f"/status — Ver estado del bot\n\n"
@@ -226,6 +235,13 @@ def _handle_command(text: str, from_chat_id: str) -> None:
             for l in reversed(replied):
                 lines.append(f"• <b>{l['name']}</b>\n  {l['notes'] or 'Sin notas'}")
             send_message("\n".join(lines))
+
+    elif cmd == "/sendnow":
+        if _outreach_trigger:
+            send_message("⚡ <b>Enviando correos pendientes ahora...</b>\nTe aviso cuando termine.")
+            _outreach_trigger()
+        else:
+            send_message("⚠️ El bot todavía está iniciando, espera un momento e intenta de nuevo.")
 
     elif cmd == "/pause":
         _paused = True

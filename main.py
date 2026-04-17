@@ -1,3 +1,4 @@
+import threading
 import time
 from datetime import datetime, timezone, timedelta
 
@@ -19,18 +20,20 @@ import telegram_bot  # noqa: E402
 from logger import get_logger, setup_logging  # noqa: E402
 
 
-def run_outreach_cycle() -> int:
+def run_outreach_cycle(force: bool = False) -> int:
     """
     Send initial outreach emails to all 'new' leads.
     Returns count sent.
+    force=True bypasses the time-window check (used by /sendnow Telegram command).
     """
     log = get_logger(__name__)
 
     # Only send outreach 7am–9pm CDMX, every day of the week
-    now_cdmx = datetime.now(CDMX)
-    if not (7 <= now_cdmx.hour < 21):
-        log.info("outreach_cycle skipped — outside send window (now %02d:%02d CDMX)", now_cdmx.hour, now_cdmx.minute)
-        return 0
+    if not force:
+        now_cdmx = datetime.now(CDMX)
+        if not (7 <= now_cdmx.hour < 21):
+            log.info("outreach_cycle skipped — outside send window (now %02d:%02d CDMX)", now_cdmx.hour, now_cdmx.minute)
+            return 0
 
     new_leads = db.get_leads_by_status("new")
     if not new_leads:
@@ -128,6 +131,20 @@ def main() -> None:
 
     # Start Telegram polling in background thread
     telegram_bot.start_polling()
+
+    def _force_outreach():
+        """Called by /sendnow — runs outreach immediately in a background thread."""
+        def _run():
+            log.info("force_outreach triggered via /sendnow")
+            try:
+                sent = run_outreach_cycle(force=True)
+                telegram_bot.notify_outreach_batch(sent, db.count_sends_today())
+            except Exception as exc:
+                log.error("force_outreach error: %s", exc)
+                telegram_bot.send_message(f"⚠️ Error al enviar: {exc}")
+        threading.Thread(target=_run, daemon=True, name="force-outreach").start()
+
+    telegram_bot.register_outreach_trigger(_force_outreach)
 
     log.info("=== Alcocer Studios BOT starting ===")
     log.info(
