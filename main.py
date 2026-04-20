@@ -63,7 +63,7 @@ def _run_outreach(force: bool, log) -> int:
             log.info("outreach_cycle paused via Telegram — stopping")
             break
 
-        if not emailer.can_send_today():
+        if not emailer.can_send_outreach_today():
             log.info("outreach_cycle daily cap reached — stopping")
             break
 
@@ -96,7 +96,7 @@ def _run_outreach(force: bool, log) -> int:
 
     log.info("outreach_cycle sent=%d", sent)
     if sent > 0:
-        telegram_bot.notify_outreach_batch(sent, db.count_sends_today())
+        telegram_bot.notify_outreach_batch(sent, db.count_outreach_today())
     return sent
 
 

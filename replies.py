@@ -145,10 +145,6 @@ def run_reply_cycle() -> int:
             lead["id"], simulated["is_complex"], reply_text[:60],
         )
 
-        if not emailer.can_send_today():
-            log.info("reply_cycle daily cap reached — stopping")
-            break
-
         email_data = build_reply_email(lead["name"], reply_text)
         success = emailer.send_email(
             to_email=lead["email"],

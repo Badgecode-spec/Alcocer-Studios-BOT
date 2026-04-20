@@ -11,11 +11,11 @@ log = get_logger(__name__)
 _RESEND_URL = "https://api.resend.com/emails"
 
 
-def can_send_today() -> bool:
-    """Returns True if daily send cap has not been reached."""
-    count = db.count_sends_today()
+def can_send_outreach_today() -> bool:
+    """True if today's new-lead outreach cap has not been reached (followups are not counted)."""
+    count = db.count_outreach_today()
     if count >= config.DAILY_SEND_LIMIT:
-        log.info("Daily send limit reached (%d/%d) — skipping", count, config.DAILY_SEND_LIMIT)
+        log.info("Daily outreach limit reached (%d/%d) — skipping", count, config.DAILY_SEND_LIMIT)
         return False
     return True
 

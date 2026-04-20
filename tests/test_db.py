@@ -104,14 +104,26 @@ def test_get_lead_by_email_missing_returns_none(fresh_db):
 
 
 def test_count_sends_today(fresh_db):
-    """count_sends_today should count only successful sends for today."""
+    """count_sends_today should count all successful sends (all types) for today."""
     lead_id = fresh_db.upsert_lead(_sample_lead())
     assert fresh_db.count_sends_today() == 0
     fresh_db.log_send(lead_id, "outreach", True)
-    assert fresh_db.count_sends_today() == 1
+    fresh_db.log_send(lead_id, "followup", True)
+    assert fresh_db.count_sends_today() == 2
     # Failed send should NOT count
     fresh_db.log_send(lead_id, "followup", False, "timeout")
-    assert fresh_db.count_sends_today() == 1
+    assert fresh_db.count_sends_today() == 2
+
+
+def test_count_outreach_today_excludes_followups(fresh_db):
+    """count_outreach_today must ignore followup and reply sends."""
+    lead_id = fresh_db.upsert_lead(_sample_lead())
+    fresh_db.log_send(lead_id, "followup", True)
+    fresh_db.log_send(lead_id, "reply", True)
+    assert fresh_db.count_outreach_today() == 0
+    fresh_db.log_send(lead_id, "outreach", True)
+    assert fresh_db.count_outreach_today() == 1
+    assert fresh_db.count_sends_today() == 3  # all three show up in total
 
 
 def test_get_weekly_stats(fresh_db):
