@@ -38,16 +38,11 @@ Web:     alcocerstudios.com\
 _FOLLOWUP_TEMPLATE = """\
 Hola {name},
 
-Soy Pablo, de Alcocer Studios — les escribo porque revisamos su presencia en línea y encontramos algunas oportunidades concretas que podrían traerles más clientes.
+Les escribí hace unos días y quería hacer un seguimiento rápido, por si el correo se perdió o andaban ocupados.
 
-Entiendo que el tiempo es valioso, por eso seré breve: en Alcocer Studios creamos páginas web profesionales diseñadas para convertir visitas en clientes reales, especialmente desde celular.
+¿Pudieron verlo? Si no es el momento, con toda confianza me lo dicen y no les escribo más. Si sí les interesa platicar sobre cómo podríamos ayudarles a conseguir más clientes a través de su página web, con gusto lo hacemos — sin ningún compromiso.
 
-Si gustan, con mucho gusto les platicamos sin ningún compromiso. Pueden responder este correo, escribirnos a alcocerstudios@yahoo.com o llamarnos directamente al (55) 2880-9044.
-
-También puede ver nuestro trabajo en:
-https://alcocerstudios.com
-
-Atentamente,
+Que tengan excelente día.
 
 Pablo Alcocer
 Fundador — Alcocer Studios

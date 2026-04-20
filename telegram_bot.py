@@ -205,6 +205,7 @@ def _handle_command(text: str, from_chat_id: str) -> None:
             f"/week — Estadísticas de 7 días\n"
             f"/pipeline — Ver embudo completo\n"
             f"/sendnow — Enviar correos pendientes ahora mismo\n"
+            f"/block correo@empresa.com — Bloquear un lead (dejar de escribirles)\n"
             f"/pause — Pausar envío de correos\n"
             f"/resume — Reanudar envío\n"
             f"/status — Ver estado del bot\n\n"
@@ -242,6 +243,27 @@ def _handle_command(text: str, from_chat_id: str) -> None:
             _outreach_trigger()
         else:
             send_message("⚠️ El bot todavía está iniciando, espera un momento e intenta de nuevo.")
+
+    elif cmd == "/block":
+        import db
+        parts = text.strip().split()
+        if len(parts) < 2:
+            send_message("Uso: /block correo@empresa.com\nEjemplo: /block rosa@salon.com")
+        else:
+            email = parts[1].lower().strip()
+            lead = db.get_lead_by_email(email)
+            if not lead:
+                send_message(f"⚠️ No encontré ningún lead con el correo <code>{email}</code>.")
+            elif lead["status"] == "closed":
+                send_message(f"Ya estaba bloqueado: <b>{lead['name']}</b> ({email})")
+            else:
+                db.close_lead(lead["id"], notes="Bloqueado manualmente vía Telegram")
+                send_message(
+                    f"🚫 <b>Lead bloqueado.</b>\n\n"
+                    f"<b>Negocio:</b> {lead['name']}\n"
+                    f"<b>Correo:</b> {email}\n\n"
+                    f"El bot ya no les enviará ningún correo."
+                )
 
     elif cmd == "/pause":
         _paused = True

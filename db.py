@@ -166,11 +166,25 @@ def set_state(key: str, value: str) -> None:
 
 
 def get_lead_by_email(email: str) -> sqlite3.Row | None:
-    """Look up a lead by their email address."""
+    """Look up a lead by their email address (case-insensitive)."""
     with get_connection() as conn:
         return conn.execute(
-            "SELECT * FROM leads WHERE email=?", (email.lower().strip(),)
+            "SELECT * FROM leads WHERE lower(email)=lower(?)", (email.strip(),)
         ).fetchone()
+
+
+def claim_lead_for_outreach(lead_id: int) -> bool:
+    """
+    Atomically flip a lead from 'new' → 'contacted' to claim it for sending.
+    Returns True only if this call won — another thread already claimed it returns False.
+    This prevents duplicate outreach when /sendnow and the main loop overlap.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "UPDATE leads SET status='contacted' WHERE id=? AND status='new'",
+            (lead_id,),
+        )
+        return cursor.rowcount == 1
 
 
 def close_lead(lead_id: int, notes: str = "") -> None:

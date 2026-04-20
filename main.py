@@ -2,6 +2,9 @@ import threading
 import time
 from datetime import datetime, timezone, timedelta
 
+# Prevents /sendnow thread and main loop from running outreach simultaneously
+_outreach_lock = threading.Lock()
+
 from dotenv import load_dotenv
 
 CDMX = timezone(timedelta(hours=-6))
@@ -28,6 +31,18 @@ def run_outreach_cycle(force: bool = False) -> int:
     """
     log = get_logger(__name__)
 
+    # Prevent /sendnow thread and main loop from running simultaneously
+    if not _outreach_lock.acquire(blocking=False):
+        log.info("outreach_cycle skipped — another outreach cycle already running")
+        return 0
+
+    try:
+        return _run_outreach(force, log)
+    finally:
+        _outreach_lock.release()
+
+
+def _run_outreach(force: bool, log) -> int:
     # Only send outreach 7am–9pm CDMX, every day of the week
     if not force:
         now_cdmx = datetime.now(CDMX)
@@ -52,6 +67,11 @@ def run_outreach_cycle(force: bool = False) -> int:
             log.info("outreach_cycle daily cap reached — stopping")
             break
 
+        # Atomically claim this lead — prevents duplicate sends if two cycles overlap
+        if not db.claim_lead_for_outreach(lead["id"]):
+            log.info("outreach_cycle lead_id=%d already claimed by another cycle — skipping", lead["id"])
+            continue
+
         email_data = messaging.build_outreach_email(
             name=lead["name"],
             website=lead["website"],
@@ -65,11 +85,14 @@ def run_outreach_cycle(force: bool = False) -> int:
             send_type="outreach",
         )
         if success:
+            # Update the ai_line and timestamp now that we have them
             db.update_lead_outreach_sent(lead["id"], email_data["ai_line"])
             sent += 1
             log.info("outreach_sent lead_id=%d name=%r", lead["id"], lead["name"])
         else:
-            log.warning("outreach_failed lead_id=%d — will retry next cycle", lead["id"])
+            # Revert claim so it will be retried next cycle
+            db.update_lead_status(lead["id"], "new")
+            log.warning("outreach_failed lead_id=%d — reverted to new, will retry", lead["id"])
 
     log.info("outreach_cycle sent=%d", sent)
     if sent > 0:
@@ -137,8 +160,7 @@ def main() -> None:
         def _run():
             log.info("force_outreach triggered via /sendnow")
             try:
-                sent = run_outreach_cycle(force=True)
-                telegram_bot.notify_outreach_batch(sent, db.count_sends_today())
+                run_outreach_cycle(force=True)
             except Exception as exc:
                 log.error("force_outreach error: %s", exc)
                 telegram_bot.send_message(f"⚠️ Error al enviar: {exc}")
