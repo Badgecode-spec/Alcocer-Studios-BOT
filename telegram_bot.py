@@ -205,6 +205,7 @@ def _handle_command(text: str, from_chat_id: str) -> None:
             f"/week — Estadísticas de 7 días\n"
             f"/pipeline — Ver embudo completo\n"
             f"/sendnow — Enviar correos pendientes ahora mismo\n"
+            f"/sendto correo@empresa.com Nombre — Enviar correo a alguien específico ahora\n"
             f"/block correo@empresa.com — Bloquear un lead (dejar de escribirles)\n"
             f"/pause — Pausar envío de correos\n"
             f"/resume — Reanudar envío\n"
@@ -243,6 +244,58 @@ def _handle_command(text: str, from_chat_id: str) -> None:
             _outreach_trigger()
         else:
             send_message("⚠️ El bot todavía está iniciando, espera un momento e intenta de nuevo.")
+
+    elif cmd == "/sendto":
+        import db, emailer, messaging
+        parts = text.strip().split(None, 2)
+        if len(parts) < 2:
+            send_message(
+                "Uso: /sendto correo@empresa.com Nombre del Negocio\n"
+                "Ejemplo: /sendto juan@salon.com Salón Juan"
+            )
+        else:
+            target_email = parts[1].lower().strip()
+            display_name = parts[2].strip() if len(parts) >= 3 else target_email.split("@")[0].title()
+
+            existing = db.get_lead_by_email(target_email)
+            if existing and existing["status"] == "closed":
+                send_message(f"⚠️ Ese correo está bloqueado ({display_name}). Usa /block para desbloquearlo primero.")
+            else:
+                send_message(f"📤 Enviando correo a <b>{display_name}</b> ({target_email})...")
+                def _do_send():
+                    try:
+                        # Upsert lead so it exists in DB for logging
+                        lead_id = db.upsert_lead({
+                            "name": display_name,
+                            "website": "",
+                            "email": target_email,
+                            "phone": "",
+                            "address": "",
+                            "category": "",
+                            "query_used": "manual/telegram",
+                        })
+                        email_data = messaging.build_outreach_email(
+                            name=display_name,
+                            website="",
+                            category="",
+                        )
+                        success = emailer.send_email(
+                            to_email=target_email,
+                            subject=email_data["subject"],
+                            body=email_data["body"],
+                            lead_id=lead_id,
+                            send_type="outreach",
+                        )
+                        if success:
+                            db.update_lead_outreach_sent(lead_id, email_data["ai_line"])
+                            send_message(f"✅ Correo enviado a <b>{display_name}</b> ({target_email})")
+                        else:
+                            send_message(f"❌ Error al enviar a {target_email}. Revisa los logs.")
+                    except Exception as exc:
+                        log.error("sendto error: %s", exc)
+                        send_message(f"❌ Error: {exc}")
+                import threading
+                threading.Thread(target=_do_send, daemon=True, name="sendto").start()
 
     elif cmd == "/block":
         import db
