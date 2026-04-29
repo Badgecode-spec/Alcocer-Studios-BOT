@@ -30,6 +30,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_email ON leads(email);
 CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
 CREATE INDEX IF NOT EXISTS idx_leads_outreach_sent_at ON leads(outreach_sent_at);
 
+CREATE TABLE IF NOT EXISTS bot_state (
+    key     TEXT PRIMARY KEY,
+    value   TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS send_log (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     lead_id     INTEGER NOT NULL REFERENCES leads(id),
@@ -77,14 +82,35 @@ def get_leads_by_status(status: str) -> list[sqlite3.Row]:
 
 
 def get_leads_due_for_followup(days: int) -> list[sqlite3.Row]:
+    """
+    Return leads due for their next follow-up (rounds 1–3).
+    Each row includes followup_count (0/1/2) so the caller knows which
+    template to use.  A lead is due when:
+      - Round 1: no prior follow-ups AND outreach was >= days ago
+      - Round 2/3: last follow-up was >= days ago AND total follow-ups < 3
+    """
     sql = """
-        SELECT * FROM leads
-        WHERE status = 'contacted'
-          AND outreach_sent_at < datetime('now', ? || ' days')
-          AND followup_sent_at IS NULL
+        SELECT * FROM (
+            SELECT l.*,
+                (SELECT COUNT(*) FROM send_log
+                 WHERE lead_id = l.id AND send_type = 'followup' AND success = 1
+                ) AS followup_count,
+                (SELECT MAX(sent_at) FROM send_log
+                 WHERE lead_id = l.id AND send_type = 'followup' AND success = 1
+                ) AS last_followup_at
+            FROM leads l
+            WHERE l.status IN ('contacted', 'followup')
+        )
+        WHERE
+            (followup_count = 0
+             AND outreach_sent_at < datetime('now', :neg_days))
+            OR
+            (followup_count BETWEEN 1 AND 2
+             AND last_followup_at < datetime('now', :neg_days))
+        ORDER BY outreach_sent_at ASC
     """
     with get_connection() as conn:
-        return conn.execute(sql, (f"-{days}",)).fetchall()
+        return conn.execute(sql, {"neg_days": f"-{days} days"}).fetchall()
 
 
 def update_lead_status(lead_id: int, status: str) -> None:
@@ -128,9 +154,23 @@ def log_send(lead_id: int, send_type: str, success: bool, error_msg: str = "") -
 
 
 def count_sends_today() -> int:
+    """Total successful sends today (all types) — used for reporting."""
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT COUNT(*) FROM send_log WHERE date(sent_at)=date('now') AND success=1"
+            "SELECT COUNT(*) FROM send_log "
+            "WHERE date(datetime(sent_at, '-6 hours')) = date(datetime('now', '-6 hours')) "
+            "AND success=1"
+        ).fetchone()
+        return row[0]
+
+
+def count_outreach_today() -> int:
+    """Outreach-only sends today — used to enforce the daily new-lead cap."""
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM send_log "
+            "WHERE date(datetime(sent_at, '-6 hours')) = date(datetime('now', '-6 hours')) "
+            "AND success=1 AND send_type='outreach'"
         ).fetchone()
         return row[0]
 
@@ -139,3 +179,68 @@ def email_exists(email: str) -> bool:
     with get_connection() as conn:
         row = conn.execute("SELECT 1 FROM leads WHERE email=?", (email,)).fetchone()
         return row is not None
+
+
+def get_state(key: str) -> str:
+    """Get a persistent bot state value (survives restarts)."""
+    with get_connection() as conn:
+        row = conn.execute("SELECT value FROM bot_state WHERE key=?", (key,)).fetchone()
+        return row["value"] if row else ""
+
+
+def set_state(key: str, value: str) -> None:
+    """Persist a bot state value to the database."""
+    with get_connection() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO bot_state (key, value) VALUES (?,?)",
+            (key, value),
+        )
+
+
+def get_lead_by_email(email: str) -> sqlite3.Row | None:
+    """Look up a lead by their email address (case-insensitive)."""
+    with get_connection() as conn:
+        return conn.execute(
+            "SELECT * FROM leads WHERE lower(email)=lower(?)", (email.strip(),)
+        ).fetchone()
+
+
+def claim_lead_for_outreach(lead_id: int) -> bool:
+    """
+    Atomically flip a lead from 'new' → 'contacted' to claim it for sending.
+    Returns True only if this call won — another thread already claimed it returns False.
+    This prevents duplicate outreach when /sendnow and the main loop overlap.
+    """
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "UPDATE leads SET status='contacted' WHERE id=? AND status='new'",
+            (lead_id,),
+        )
+        return cursor.rowcount == 1
+
+
+def close_lead(lead_id: int, notes: str = "") -> None:
+    """Mark a lead as closed (opted out, unresponsive, etc.)."""
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE leads SET status='closed', notes=? WHERE id=?",
+            (notes, lead_id),
+        )
+
+
+def get_weekly_stats() -> dict:
+    """Stats for the last 7 CDMX calendar days."""
+    with get_connection() as conn:
+        sent_7d = conn.execute(
+            "SELECT COUNT(*) FROM send_log "
+            "WHERE date(datetime(sent_at,'-6 hours')) >= date(datetime('now','-6 hours','-6 days')) "
+            "AND success=1"
+        ).fetchone()[0]
+        counts = {}
+        for status in ("new", "contacted", "followup", "replied", "closed"):
+            counts[status] = conn.execute(
+                "SELECT COUNT(*) FROM leads WHERE status=?", (status,)
+            ).fetchone()[0]
+        counts["total"] = conn.execute("SELECT COUNT(*) FROM leads").fetchone()[0]
+        counts["sent_7d"] = sent_7d
+        return counts
