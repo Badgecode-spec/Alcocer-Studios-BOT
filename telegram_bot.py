@@ -22,10 +22,18 @@ _conversation_history: deque = deque(maxlen=20)
 # Registered by main.py so /sendnow can trigger an immediate outreach pass
 _outreach_trigger = None
 
+# Registered by main.py so /fetchnow can force a lead fetch + send cycle
+_fetch_and_send_trigger = None
+
 
 def register_outreach_trigger(fn) -> None:
     global _outreach_trigger
     _outreach_trigger = fn
+
+
+def register_fetch_and_send_trigger(fn) -> None:
+    global _fetch_and_send_trigger
+    _fetch_and_send_trigger = fn
 
 
 def _base_url() -> str:
@@ -204,7 +212,8 @@ def _handle_command(text: str, from_chat_id: str) -> None:
             f"/replies — Leads que respondieron\n"
             f"/week — Estadísticas de 7 días\n"
             f"/pipeline — Ver embudo completo\n"
-            f"/sendnow — Enviar correos pendientes ahora mismo\n"
+            f"/fetchnow — Buscar leads nuevos y enviar correos ahora mismo\n"
+            f"/sendnow — Enviar correos pendientes (sin buscar leads nuevos)\n"
             f"/sendto correo@empresa.com Nombre — Enviar correo a alguien específico ahora\n"
             f"/block correo@empresa.com — Bloquear un lead (dejar de escribirles)\n"
             f"/pause — Pausar envío de correos\n"
@@ -237,6 +246,16 @@ def _handle_command(text: str, from_chat_id: str) -> None:
             for l in reversed(replied):
                 lines.append(f"• <b>{l['name']}</b>\n  {l['notes'] or 'Sin notas'}")
             send_message("\n".join(lines))
+
+    elif cmd == "/fetchnow":
+        if _fetch_and_send_trigger:
+            send_message(
+                "🔍 <b>Buscando leads nuevos y enviando correos...</b>\n"
+                "Esto puede tardar unos minutos. Te aviso cuando termine."
+            )
+            _fetch_and_send_trigger()
+        else:
+            send_message("⚠️ El bot todavía está iniciando, espera un momento e intenta de nuevo.")
 
     elif cmd == "/sendnow":
         if _outreach_trigger:

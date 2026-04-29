@@ -168,6 +168,24 @@ def main() -> None:
 
     telegram_bot.register_outreach_trigger(_force_outreach)
 
+    def _fetch_and_send():
+        """Called by /fetchnow — resets the fetch date, fetches fresh leads, then sends."""
+        def _run():
+            log.info("fetch_and_send triggered via /fetchnow")
+            try:
+                # Clear today's fetch date so leads.run_lead_fetch() runs
+                db.set_state("last_lead_fetch_date", "")
+                new_count = leads.run_lead_fetch()
+                db.set_state("last_lead_fetch_date", datetime.now(CDMX).strftime("%Y-%m-%d"))
+                telegram_bot.send_message(f"🔍 Leads nuevos encontrados: <b>{new_count}</b>\nEnviando correos...")
+                run_outreach_cycle(force=True)
+            except Exception as exc:
+                log.error("fetch_and_send error: %s", exc)
+                telegram_bot.send_message(f"⚠️ Error: {exc}")
+        threading.Thread(target=_run, daemon=True, name="fetch-and-send").start()
+
+    telegram_bot.register_fetch_and_send_trigger(_fetch_and_send)
+
     log.info("=== Alcocer Studios BOT starting ===")
     log.info(
         "DB=%s | interval=%ds | daily_limit=%d | followup_days=%d | reply_sim=%.0f%%",
