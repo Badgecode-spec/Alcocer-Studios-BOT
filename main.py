@@ -202,8 +202,8 @@ def main() -> None:
         "Usa /start para ver los comandos disponibles."
     )
 
-    try:
-        while True:
+    while True:
+        try:
             # Use CDMX calendar date so "today" matches Mexico City, not UTC
             today = datetime.now(CDMX).strftime("%Y-%m-%d")
 
@@ -219,9 +219,13 @@ def main() -> None:
 
             log.info("sleeping %ds until next cycle", config.LOOP_INTERVAL_SECONDS)
             time.sleep(config.LOOP_INTERVAL_SECONDS)
-    except KeyboardInterrupt:
-        log.info("=== BOT stopped by user ===")
-        telegram_bot.send_message("⚠️ Bot detenido manualmente.")
+        except KeyboardInterrupt:
+            log.info("=== BOT stopped by user ===")
+            telegram_bot.send_message("⚠️ Bot detenido manualmente.")
+            break
+        except Exception as exc:
+            log.error("main loop error (will retry next cycle): %s", exc, exc_info=True)
+            time.sleep(60)
 
 
 if __name__ == "__main__":
